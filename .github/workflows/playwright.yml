@@ -14,7 +14,7 @@ on:
         default: 'all'
         type: choice
         options:
-          - sanity
+          - single
           - all
       test_folder:
         description: 'Select test folder (only used when mode is "all")'

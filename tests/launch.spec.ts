@@ -1,4 +1,4 @@
 import { test, expect } from '@playwright/test';
-test('@sanity Run this test only 1', async ({ page }) => {
-  await page.goto('https://example.com');
+test('@sanity @regression Run this test only 1', async ({ page }) => {
+  await page.goto('https://www.google.com');
 });
