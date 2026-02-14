@@ -1,0 +1,133 @@
+name: Playwright Tests -- With customoized inputs for workers and retries
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run tests on'
+        required: true
+        default: 'main'
+        type: string
+
+      test_mode:
+        description: 'Select test execution mode'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - single
+          - sanity
+          - regression
+          - all
+
+      test_script:
+        description: 'Specific test script (used when mode is "single")'
+        required: false
+        type: string
+        placeholder: 'e.g., login.spec.ts'
+
+      retries:
+        description: 'Number of retries for failed tests'
+        required: false
+        default: '1'
+        type: string
+
+      workers:
+        description: 'Number of parallel workers'
+        required: false
+        default: '1'
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Validate Single Test Input
+        if: ${{ inputs.test_mode == 'single' }}
+        run: |
+          if [ -z "${{ inputs.test_script }}" ]; then
+            echo "Error: test_script is required when test_mode is 'single'"
+            exit 1
+          fi
+
+      - name: Run Playwright tests
+        run: |
+          echo "Selected Mode: ${{ inputs.test_mode }}"
+
+          if [ "${{ inputs.test_mode }}" = "sanity" ]; then
+            npx playwright test \
+              --grep "@sanity" \
+              --retries=${{ inputs.retries }} \
+              --workers=${{ inputs.workers }} \
+              --project=chromium \
+              --reporter=html
+
+          elif [ "${{ inputs.test_mode }}" = "regression" ]; then
+            npx playwright test \
+              --grep "@regression" \
+              --retries=${{ inputs.retries }} \
+              --workers=${{ inputs.workers }} \
+              --project=chromium \
+              --reporter=html
+
+          elif [ "${{ inputs.test_mode }}" = "single" ]; then
+            npx playwright test tests/${{ inputs.test_script }} \
+              --retries=${{ inputs.retries }} \
+              --workers=${{ inputs.workers }} \
+              --project=chromium \
+              --reporter=html
+
+          else
+            npx playwright test tests \
+              --retries=${{ inputs.retries }} \
+              --workers=${{ inputs.workers }} \
+              --project=chromium \
+              --reporter=html
+          fi
+        continue-on-error: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Deploy to GitHub Pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./playwright-report
+          destination_dir: reports/${{ github.run_id }}
+          force_orphan: true
+
+      - name: Print Report URL
+        if: always()
+        run: |
+          echo "📊 Playwright HTML Report:"
+          echo "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/${{ github.run_id }}/index.html"
