@@ -126,8 +126,11 @@ jobs:
           destination_dir: reports/${{ github.run_id }}
           force_orphan: true
 
-      - name: Print Report URL
+      - name: Publish Report Link in Summary
         if: always()
         run: |
-          echo "📊 Playwright HTML Report:"
-          echo "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/${{ github.run_id }}/index.html"
+          REPORT_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/${{ github.run_id }}/index.html"
+
+          echo "## 📊 Playwright Test Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[Click here to view HTML Report]($REPORT_URL)" >> $GITHUB_STEP_SUMMARY
